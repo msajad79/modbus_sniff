@@ -4,6 +4,25 @@ import serial
 import threading
 import queue
 
+def __generate_crc16_table():
+    """Generate a crc16 lookup table.
+
+    .. note:: This will only be generated once
+    """
+    result = []
+    for byte in range(256):
+        crc = 0x0000
+        for _ in range(8):
+            if (byte ^ crc) & 0x0001:
+                crc = (crc >> 1) ^ 0xA001
+            else:
+                crc >>= 1
+            byte >>= 1
+        result.append(crc)
+    return result
+
+__crc16_table = __generate_crc16_table()
+
 def computeCRC(data):  # pylint: disable=invalid-name
     """Compute a crc16 on the passed in string.
 
@@ -78,6 +97,7 @@ class ModbusRTUSniff():
         self.pending_request:RequestPacket = None
         
         self.q = queue.Queue()
+        self.API = queue.Queue()
 
         self.packets = []
         self.thread_read_packet = threading.Thread(target=self.get_packet)
@@ -168,10 +188,6 @@ class ModbusRTUSniff():
         )
         return res
 
-    def save_data(self, res:ResponsePacket):
-        data = res.registers[self.target_register - res.req.start_register]
-        print(data)
-
     def sniffing(self):
         while True:
             packet = self.q.get()
@@ -187,12 +203,16 @@ class ModbusRTUSniff():
                 if res is None:
                     continue
                 res.decode()
-                
+
                 if res.req.start_register <= self.target_register  and self.target_register < res.req.start_register+res.req.quantity:
-                    self.save_data(res)
+                    self.API.put(res.registers[self.target_register - res.req.start_register])
                 self.pending_request = None
 
 if __name__ == "__main__":
-    sniff = ModbusRTUSniff("COM8", 9600, 2)
-    sniff.sniffing()
+    sniff = ModbusRTUSniff("/dev/ttyUSB1", 9600, 2)
+    sniff_thread = threading.Thread(target=sniff.sniffing)
+    sniff_thread.start()
+    while True:
+        value = sniff.API.get()
+        print(value)
     

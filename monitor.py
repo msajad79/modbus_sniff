@@ -41,7 +41,7 @@ def monitor_hart():
 
 if __name__ == "__main__":
 
-    port = 'COM8'
+    port = '/dev/ttyUSB1'
     baudrate = 9600
     monitor_modbus()
 

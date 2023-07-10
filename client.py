@@ -1,7 +1,7 @@
 from pymodbus.client import ModbusSerialClient
 import time
 
-client = ModbusSerialClient(method='rtu', port='COM9', baudrate=9600)
+client = ModbusSerialClient(method='rtu', port='/dev/ttyUSB0', baudrate=9600)
 
 client.connect()
 while True:
